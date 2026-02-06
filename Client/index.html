@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+
+<script src="leaflet.js"> </script>
+
+<title>Projet WEB Température</title>
+<link rel="stylesheet" type="text/css" href="leaflet.css" /> 
+<link rel="stylesheet" type="text/css" href="style.css"/>
+
+<meta charset="utf-8">
+
+<body onload="load_data()">  <!-- Récupération des données avec le chargement de la page -->
+
+<div class="main-content">
+  <h1>
+    <img src="images/logo_ct.png" alt="Logo" width="100">
+    Historique des températures en France
+  </h1> 	
+  
+  <!-- Barre de navigation -->
+  <div class="navbar">
+    <button onclick="afficherOnglet('carte')">Carte</button>
+    <button onclick="afficherOnglet('faq')">FAQ</button>
+    <button onclick="afficherOnglet('infos')">Informations</button>
+  </div>
+
+  <!-- Wrapper des onglets -->
+  <div id="onglets-wrapper">
+    <div id="conteneur-onglets">
+    
+      <!-- Onglet Carte -->
+      <div id="onglet-carte" class="onglet actif">
+        <div style="display: flex; flex-direction: row; justify-content: center; align-items: flex-start; gap: 2em; padding: 0 40px;">
+
+          <div id="map" style="height: 500px;"></div>
+
+          <div id="control-tableau" class="control-box">
+            <div id="texte-parameters">Bloc de sélection</div>
+            <!-- Bloc des dates -->
+            <div class="date-select-row" style="margin-bottom: 1.1em;">
+              <div class="date-block" style="margin-bottom: 1.1em;">
+                <label for="start-month">Date de début :</label>
+                <select id="start-month">
+                  <option value="01">Janvier</option>
+                  <option value="02">Février</option>
+                  <option value="03">Mars</option>
+                  <option value="04">Avril</option>
+                  <option value="05">Mai</option>
+                  <option value="06">Juin</option>
+                  <option value="07">Juillet</option>
+                  <option value="08">Août</option>
+                  <option value="09">Septembre</option>
+                  <option value="10">Octobre</option>
+                  <option value="11">Novembre</option>
+                  <option value="12">Décembre</option>
+                </select>
+                <select id="start-year"></select>
+              </div>
+
+              <div class="date-block">
+                <label for="end-month">Date de fin :</label>
+                <select id="end-month">
+                  <option value="01">Janvier</option>
+                  <option value="02">Février</option>
+                  <option value="03">Mars</option>
+                  <option value="04">Avril</option>
+                  <option value="05">Mai</option>
+                  <option value="06">Juin</option>
+                  <option value="07">Juillet</option>
+                  <option value="08">Août</option>
+                  <option value="09">Septembre</option>
+                  <option value="10">Octobre</option>
+                  <option value="11">Novembre</option>
+                  <option value="12">Décembre</option>
+                </select>
+                <select id="end-year"></select>
+              </div>
+            </div>
+
+            <!-- Ici le tableau des stations généré par JS -->
+            <div id="station-table"></div>
+          </div>
+        </div>
+
+        <div id="reponse">
+          <canvas id="temp-chart" width="800" height="400"></canvas>
+        </div>
+      </div>
+
+      <!-- Onglet FAQ -->
+      <div id="onglet-faq" class="onglet">
+        <div style="background:#e0e7ff; border-radius:10px; padding:1em 1.5em; margin-bottom:1.5em; color:#1f7491; font-size:1.08em;">
+          <b>Comment fonctionne la foire aux questions&nbsp;?</b><br>
+          Posez une question en remplissant votre nom, prénom et votre message. Les autres utilisateurs (ou vous-même) peuvent répondre à chaque question. Vous pouvez modifier ou supprimer vos messages en saisissant à nouveau votre nom et prénom. Toutes les questions et réponses sont visibles par tous les visiteurs du site.
+        </div>
+        <div id="forum-section">
+          <form id="forum-form" style="margin-bottom:2em; background:#f7faff; padding:1em 1.5em; border-radius:12px; box-shadow:0 2px 8px #0001;">
+            <div style="display:flex; gap:0.2em; flex-wrap:nowrap; align-items:center;">
+              <input type="text" id="forum-nom" placeholder="Nom" required style="flex:unset; min-width:90px; max-width:120px; width:100px; padding:0.4em; border-radius:6px; border:1px solid #bbb; margin-bottom:0;">
+              <input type="text" id="forum-prenom" placeholder="Prénom" required style="flex:unset; min-width:90px; max-width:120px; width:100px; padding:0.4em; border-radius:6px; border:1px solid #bbb; margin-bottom:0;">
+            </div>
+            <textarea id="forum-question" placeholder="Votre question ou remarque..." required style="width:100%; max-width:250px; margin-top:0.7em; padding:0.4em; border-radius:6px; border:1px solid #bbb; min-height:24px; max-height:40px; height:24px;"></textarea>
+            <button type="submit" style="margin-top:0.7em; background:#18a8bf; color:#fff; border:none; border-radius:6px; padding:0.6em 1.5em; font-weight:bold; cursor:pointer;">Poser une question</button>
+          </form>
+          <div id="forum-list"></div>
+        </div>
+      </div>
+
+<!-- Onglet Informations -->
+<div id="onglet-infos" class="onglet">
+  <div class="section-infos">
+    <h2>Informations</h2>
+
+    <p style="font-size: 1.1em; line-height: 1.6; color: #2a3d55;">
+      <strong>Centrale Température</strong> est une application web interactive dédiée à l’exploration de l’historique des températures en France. Elle permet de naviguer sur une carte dynamique pour consulter les relevés de température minimale et maximale mesurés dans différentes stations du territoire, et de comparer leur évolution sur une période personnalisable.
+      <br><br>
+      Le projet s’appuie sur les <strong>longues séries homogénéisées</strong> publiées par <strong>Météo-France</strong>, qui regroupent des données climatiques corrigées des ruptures de mesure liées aux changements de méthode ou de site. Ces données fiables permettent d’analyser les tendances sur le long terme et d’illustrer les effets du changement climatique à l’échelle locale.
+      <br><br>
+      Ce site a été conçu dans le cadre d’un projet de développement web par des élèves-ingénieurs de l’École Centrale de Lyon, avec l’objectif de rendre ces informations accessibles au grand public à travers une interface claire et interactive.
+    </p>
+
+    <div class="legende-bloc" style="margin-top: 2em;">
+      <strong>Légende des icônes&nbsp;:</strong>
+      <ul class="legende-liste">
+        <li><img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png"> : Station avec températures&nbsp;<b>minimales et maximales</b></li>
+        <li><img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png"> : Station avec seulement températures&nbsp;<b>maximales</b></li>
+        <li><img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png"> : Station avec seulement températures&nbsp;<b>minimales</b></li>
+        <li><img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png"> : Station sans données</li>
+      </ul>
+    </div>
+
+    <div class="equipe-bloc">
+      <strong>Présentation de l'équipe :</strong>
+      <div class="team-grid">
+        
+        <div class="team-photo">
+          <img src="images/Maxence.jpg" alt="Maxence">
+          <div>Maxence Chaumont</div>
+          
+        </div>
+        <div class="team-photo">
+          <img src="images/Tristan.jpg" alt="Tristan">
+          <div>Tristan Taraud</div>
+          
+        </div>
+        <div class="team-photo">
+          <img src="images/Matéo.jpg" alt="Matéo">
+          <div>Matéo Riche</div>
+         
+        </div>
+        <div class="team-photo">
+          <img src="images/Mathis.jpg" alt="Mathis">
+          <div>Mathis Bourguignon</div>
+          
+        </div>
+      </div>
+	  <div style="text-align: center; margin-top: 2em;">
+		<button class="bouton-don" onclick="ouvrirPopup()">Faire un don</button>
+		</div>
+    </div>
+  </div>
+  
+</div> <!-- fin de #onglet-infos -->
+</div> <!-- fin de #conteneur-onglets -->
+</div> <!-- fin de #onglets-wrapper -->
+
+  <!-- POPUP -->
+  <div id="popup-don" style="display:none;" class="popup-don">
+    <div class="popup-content">
+      <h3>Faire un don</h3>
+      <form onsubmit="envoyerDon(event)">
+        <label>Nom complet : <input type="text" required></label><br><br>
+        <label>Numéro de carte : <input type="text" placeholder="•••• •••• •••• ••••" required></label><br><br>
+        <label>Montant (€) : <input type="number" required></label><br><br>
+        <button type="submit">Envoyer</button>
+        <button type="button" onclick="fermerPopup()">Annuler</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>Ce site WEB a été conçu par : <em>Mathis Bourguignon, Maxence Chaumont, Matéo Riche et Tristan Taraud.</em></p>
+</footer>
+
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const conteneur = document.getElementById('conteneur-onglets');
+
+// On définit l'ordre des onglets
+
+const ordre = ['carte', 'faq', 'infos'];
+
+function afficherOnglet(nom) {
+  const conteneur = document.getElementById('conteneur-onglets');
+  const index = ordre.indexOf(nom);
+  if (index >= 0) {
+    const offset = index * -100;
+    conteneur.style.transform = `translateX(${offset}vw)`;
+  }
+}
+
+// Remplissage dynamique des années 
+window.onload = function () {
+  load_data();
+
+  const startYear = document.getElementById('start-year');
+  const endYear = document.getElementById('end-year');
+
+  for (let y = 2015; y <= 2025; y++) {
+    startYear.innerHTML += `<option value="${y}">${y}</option>`;
+    endYear.innerHTML += `<option value="${y}">${y}</option>`;
+  }
+}
+
+// Remplace la fonction populateYears par une fonction populateYearSelectors qui remplit start-year et end-year
+function populateYearSelectors() {
+  const startYearSelect = document.getElementById('start-year');
+  const endYearSelect = document.getElementById('end-year');
+  const currentYear = new Date().getFullYear();
+  for (let y = 1951; y <= 2022; y++) {
+    const option1 = document.createElement('option');
+    option1.value = y;
+    option1.textContent = y;
+    startYearSelect.appendChild(option1);
+    const option2 = document.createElement('option');
+    option2.value = y;
+    option2.textContent = y;
+    endYearSelect.appendChild(option2);
+  }
+  startYearSelect.value = 1951;
+  endYearSelect.value = 2022;
+}
+
+// Creation d'une carte dans la balise div "map", et positionne la vue sur un point donné et un niveau de zoom
+var map = L.map('map').setView([46.5,2.5], 5);
+// Ajout d'une couche de dalles OpenStreetMap
+L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+     attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+     }).addTo(map);
+var stationMarkers = [];
+
+// Ajoute des icônes personnalisées pour les marqueurs
+var greenIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+  shadowUrl: 'images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+var redIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+  shadowUrl: 'images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+var blueIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+  shadowUrl: 'images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+var grayIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png',
+  shadowUrl: 'images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+// Modifie load_data pour afficher d'abord un marqueur gris, puis changer la couleur après la requête /api/has_min
+function load_data () {
+    var xhr = new XMLHttpRequest();
+    xhr.onload = function() {   // fonction callback
+      if (this.status != 200) {  // test erreur 
+        alert('Erreur lors du chargement des stations');
+        return;
+        }
+      // récupération des données renvoyées par le serveur
+      var data = JSON.parse(this.responseText);
+      // boucle sur les enregistrements renvoyés
+      for (let n = 0; n < data.length; n++) {
+        let icon;
+        if (data[n].has_min && data[n].has_max) icon = greenIcon;
+        else if (data[n].has_max) icon = redIcon;
+        else if (data[n].has_min) icon = blueIcon;
+        else icon = grayIcon;
+        let marker = L.marker([data[n].lat, data[n].lon], {icon: icon}).addTo(map)
+          .bindPopup(data[n].nom);
+        marker.stationId = data[n].num;
+        marker.on('click', OnMarkerClick);
+        stationMarkers.push(marker);
+      }
+    };
+    xhr.open('GET','/api/stations',true);
+    xhr.send();
+}
+var tempChart = null;
+// Gestion des stations sélectionnées et du tableau de contrôle
+let selectedStations = [];
+let stationDataCache = {};
+
+function updateControlTableau() {
+const container = document.getElementById('station-table');
+
+// Vide seulement le tableau, pas les sélecteurs
+container.innerHTML = '';
+
+let html = '';
+if (selectedStations.length === 0) {
+  html = '<p style="color: #888;">Cliquez sur une station sur la carte pour l\'ajouter ici !</p>';
+} else {
+  html += '<table style="width:100%; border-collapse:collapse; text-align:center;">';
+  html += '<tr><th></th>';
+  for (const st of selectedStations) {
+    html += `<th>${st.nom} <span class="supprimer-ville" data-num="${st.num}" style="cursor:pointer;color:#c00;font-weight:bold;margin-left:5px;">&times;</span></th>`;
+  }
+  html += '</tr>';
+  html += '<tr><td style="font-weight:bold;">Temp. Min</td>';
+  for (const st of selectedStations) {
+    const checked = st.showMin ? 'checked' : '';
+    html += `<td><input type="checkbox" class="min-checkbox" data-num="${st.num}" ${checked}></td>`;
+  }
+  html += '</tr>';
+  html += '<tr><td style="font-weight:bold;">Temp. Max</td>';
+  for (const st of selectedStations) {
+    const checked = st.showMax ? 'checked' : '';
+    html += `<td><input type="checkbox" class="max-checkbox" data-num="${st.num}" ${checked}></td>`;
+  }
+  html += '</tr>';
+  html += '</table>';
+  html += '<div style="margin-top:10px; color:#888; font-size:0.95em;">Sélectionnez au maximum 3 stations !</div>';
+}
+
+container.innerHTML = html;
+
+const reponseDiv = document.getElementById('reponse');
+
+if (selectedStations.length === 0) {
+  reponseDiv.classList.remove('visible');
+} else {
+  reponseDiv.classList.add('visible');
+}
+
+
+  // Ajout des listeners
+  document.querySelectorAll('.min-checkbox').forEach(cb => {
+    cb.addEventListener('change', function() {
+      const st = selectedStations.find(s => s.num === this.dataset.num);
+      st.showMin = this.checked;
+      updateChartFromSelection();
+    });
+  });
+  document.querySelectorAll('.max-checkbox').forEach(cb => {
+    cb.addEventListener('change', function() {
+      const st = selectedStations.find(s => s.num === this.dataset.num);
+      st.showMax = this.checked;
+      updateChartFromSelection();
+    });
+  });
+  document.querySelectorAll('.supprimer-ville').forEach(croix => {
+  croix.addEventListener('click', function() {
+    const num = this.dataset.num;
+    const idx = selectedStations.findIndex(s => s.num === num);
+    if (idx !== -1) {
+      selectedStations.splice(idx, 1);
+      updateControlTableau();
+      updateChartFromSelection();
+    }
+  });
+});
+}
+
+// Surcharge OnMarkerClick pour gérer la sélection/déselection
+function OnMarkerClick (e) {
+    const stationId = e.target.stationId;
+    // Cherche si déjà sélectionnée
+    const idx = selectedStations.findIndex(s => s.num === stationId);
+    if (idx !== -1) {
+      // Déselectionne
+      selectedStations.splice(idx, 1);
+      updateControlTableau();
+      updateChartFromSelection();
+      return;
+    }
+    // Max 3 stations
+    if (selectedStations.length >= 3) {
+      alert('Vous ne pouvez sélectionner que 3 stations maximum.');
+      return;
+    }
+    // Récupère le nom de la station
+    const marker = e.target;
+    const nom = marker.getPopup().getContent();
+    // Par défaut, on affiche min et max si possible
+    selectedStations.push({ num: stationId, nom: nom, showMin: true, showMax: true });
+    updateControlTableau();
+    updateChartFromSelection();
+}
+
+// Met à jour le graphique selon les cases cochées et la période
+function updateChartFromSelection() {
+  const startMonth = document.getElementById('start-month').value;
+  const startYear = document.getElementById('start-year').value;
+  const endMonth = document.getElementById('end-month').value;
+  const endYear = document.getElementById('end-year').value;
+  const start = startYear + startMonth;
+  const end = endYear + endMonth;
+  if (parseInt(start) > parseInt(end)) {
+  alert("Erreur : la date de début ne peut pas être postérieure à la date de fin.");
+  return;
+}
+  // Pour chaque station sélectionnée, récupère les données si besoin
+  let promises = selectedStations.map(st => {
+    const key = `${st.num}_${start}_${end}`;
+    if (stationDataCache[key]) {
+      return Promise.resolve({st, data: stationDataCache[key]});
+    }
+    return fetch(`/api/temperatures?station_id=${st.num}&start=${start}&end=${end}`)
+      .then(resp => resp.json())
+      .then(data => {
+        stationDataCache[key] = data;
+        return {st, data};
+      });
+  });
+  Promise.all(promises).then(results => {
+    // Prépare les datasets pour Chart.js
+    let datasets = [];
+    const colors = ['red', 'blue', 'green', 'orange', 'purple', 'brown'];
+    let colorIdx = 0;
+    let labels = [];
+    results.forEach(({st, data}) => {
+      // Les labels sont ceux de la première station sélectionnée
+      if (labels.length === 0 && data.max.length > 0) {
+        labels = data.max.map(x => x.date ? x.date.slice(0,4) + '-' + x.date.slice(4,6) : '');
+      }
+      if (st.showMax && data.max.length > 0) {
+        datasets.push({
+          label: `Max - ${st.nom}`,
+          data: data.max.map(x => x.value),
+          borderColor: colors[colorIdx % colors.length],
+          fill: false
+        });
+        colorIdx++;
+      }
+      if (st.showMin && data.min.length > 0) {
+        datasets.push({
+          label: `Min - ${st.nom}`,
+          data: data.min.map(x => x.value),
+          borderColor: colors[(colorIdx+1) % colors.length],
+          borderDash: [5,5],
+          fill: false
+        });
+        colorIdx++;
+      }
+    });
+    if (tempChart) tempChart.destroy();
+    const ctx = document.getElementById('temp-chart').getContext('2d');
+    tempChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: datasets
+      },
+      options: {
+        responsive: false,
+        plugins: {
+          title: {
+            display: true,
+            text: `Températures min et max pour les stations sélectionnées`
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Mois' },
+            ticks: { autoSkip: true, maxTicksLimit: 12 }
+          },
+          y: {
+            title: { display: true, text: 'Température (°C)' }
+          }
+        }
+      }
+    });
+  });
+}
+
+// Met à jour le graphique si la période change
+['start-month', 'start-year', 'end-month', 'end-year'].forEach(id => {
+  document.getElementById(id).addEventListener('change', function() {
+    updateChartFromSelection();
+  });
+});
+
+window.onload = function() {
+  populateYearSelectors();
+  load_data();
+};
+
+function escapeHTML(str) {
+  return str.replace(/[&<>"']/g, function(tag) {
+    const chars = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'};
+    return chars[tag] || tag;
+  });
+}
+
+function renderForum() {
+  fetch('/api/forum')
+    .then(resp => resp.json())
+    .then(data => {
+      const forumList = document.getElementById('forum-list');
+      if (!data.length) {
+        forumList.innerHTML = '<p style="color:#888;">Aucune question pour le moment.</p>';
+        return;
+      }
+      let html = '';
+      data.slice().reverse().forEach(msg => {
+        html += `<div class="forum-msg" style="background:#fff; border-radius:10px; box-shadow:0 1px 6px #0001; margin-bottom:1.2em; padding:1em 1.2em;">
+          <div style="font-weight:bold; color:#1f7491;">${escapeHTML(msg.author)}</div>
+          <div style="margin:0.5em 0 0.7em 0;" class="forum-content" data-id="${msg.id}">${escapeHTML(msg.content)}</div>
+          <button class="forum-edit-btn" data-id="${msg.id}" style="background:#ffe066; color:#8a6d00; border:none; border-radius:6px; padding:0.2em 0.8em; margin-right:0.5em; cursor:pointer;">Modifier</button>
+          <button class="forum-delete-btn" data-id="${msg.id}" style="background:#ffb3b3; color:#a00; border:none; border-radius:6px; padding:0.2em 0.8em; cursor:pointer;">Supprimer</button>`;
+        if (msg.replies && msg.replies.length) {
+          html += '<div style="margin-left:1em; margin-top:0.7em;">';
+          msg.replies.forEach((rep, idx) => {
+            html += `<div style="border-left:3px solid #18a8bf; margin-bottom:0.5em; padding-left:0.7em;">
+              <span style="color:#18a8bf; font-weight:bold;">${escapeHTML(rep.author)}</span> : <span class="forum-reply-content" data-id="${msg.id}" data-idx="${idx}">${escapeHTML(rep.content)}</span>
+              <button class="forum-reply-edit-btn" data-id="${msg.id}" data-idx="${idx}" style="background:#ffe066; color:#8a6d00; border:none; border-radius:6px; padding:0.1em 0.6em; margin-left:0.5em; cursor:pointer; font-size:0.95em;">Modifier</button>
+              <button class="forum-reply-delete-btn" data-id="${msg.id}" data-idx="${idx}" style="background:#ffb3b3; color:#a00; border:none; border-radius:6px; padding:0.1em 0.6em; cursor:pointer; font-size:0.95em;">Supprimer</button>
+            </div>`;
+          });
+          html += '</div>';
+        }
+        html += `<button class="forum-reply-btn" data-id="${msg.id}" style="margin-top:0.7em; background:#e0e7ff; color:#1f7491; border:none; border-radius:6px; padding:0.3em 1em; cursor:pointer;">Répondre</button>
+          <div class="forum-reply-form" id="forum-reply-form-${msg.id}" style="display:none; margin-top:0.7em;">
+            <div style="display:flex; gap:0.2em; flex-wrap:nowrap; align-items:center;">
+              <input type="text" class="forum-reply-nom" placeholder="Nom" style="flex:unset; min-width:90px; max-width:120px; width:100px; padding:0.4em; border-radius:6px; border:1px solid #bbb; margin-bottom:0;">
+              <input type="text" class="forum-reply-prenom" placeholder="Prénom" style="flex:unset; min-width:90px; max-width:120px; width:100px; padding:0.4em; border-radius:6px; border:1px solid #bbb; margin-bottom:0;">
+            </div>
+            <textarea class="forum-reply-content-input" placeholder="Votre réponse..." style="width:100%; max-width:250px; margin:0.4em 0 0.4em 0; padding:0.4em; border-radius:6px; border:1px solid #bbb; min-height:24px; max-height:40px; height:24px;"></textarea>
+            <button class="forum-reply-send" data-id="${msg.id}" style="background:#18a8bf; color:#fff; border:none; border-radius:6px; padding:0.4em 1.2em; font-weight:bold; cursor:pointer;">Envoyer</button>
+          </div>
+          <div class="forum-edit-form" id="forum-edit-form-${msg.id}" style="display:none; margin-top:0.7em;">
+            <input type="text" class="forum-edit-nom" placeholder="Nom" style="margin-bottom:0.4em; width:45%; padding:0.4em; border-radius:6px; border:1px solid #bbb;">
+            <input type="text" class="forum-edit-prenom" placeholder="Prénom" style="margin-bottom:0.4em; width:45%; padding:0.4em; border-radius:6px; border:1px solid #bbb; margin-left:2%;">
+            <textarea class="forum-edit-content" style="width:100%; margin-bottom:0.4em; padding:0.5em; border-radius:6px; border:1px solid #bbb;">${escapeHTML(msg.content)}</textarea>
+            <button class="forum-edit-send" data-id="${msg.id}" style="background:#18a8bf; color:#fff; border:none; border-radius:6px; padding:0.4em 1.2em; font-weight:bold; cursor:pointer;">Valider</button>
+            <button class="forum-edit-cancel" data-id="${msg.id}" style="background:#eee; color:#333; border:none; border-radius:6px; padding:0.4em 1.2em; margin-left:0.5em; cursor:pointer;">Annuler</button>
+          </div>`;
+      });
+      forumList.innerHTML = html;
+      // Répondre
+      document.querySelectorAll('.forum-reply-btn').forEach(btn => {
+        btn.onclick = function() {
+          const form = document.getElementById('forum-reply-form-' + btn.dataset.id);
+          form.style.display = (form.style.display === 'none') ? 'block' : 'none';
+        };
+      });
+      document.querySelectorAll('.forum-reply-send').forEach(btn => {
+        btn.onclick = function() {
+          const form = btn.closest('.forum-reply-form');
+          const nom = form.querySelector('.forum-reply-nom').value.trim();
+          const prenom = form.querySelector('.forum-reply-prenom').value.trim();
+          const content = form.querySelector('.forum-reply-content-input').value.trim();
+          if (!nom || !prenom || !content) {
+            alert('Merci de remplir nom, prénom et réponse.');
+            return;
+          }
+          fetch('/api/forum/reply', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `id=${btn.dataset.id}&author=${encodeURIComponent(nom + ' ' + prenom)}&content=${encodeURIComponent(content)}`
+          }).then(resp => {
+            if (resp.ok) {
+              renderForum();
+            } else {
+              alert('Erreur lors de l\'envoi de la réponse.');
+            }
+          });
+        };
+      });
+      // Modifier question
+      document.querySelectorAll('.forum-edit-btn').forEach(btn => {
+        btn.onclick = function() {
+          document.getElementById('forum-edit-form-' + btn.dataset.id).style.display = 'block';
+        };
+      });
+      document.querySelectorAll('.forum-edit-cancel').forEach(btn => {
+        btn.onclick = function() {
+          document.getElementById('forum-edit-form-' + btn.dataset.id).style.display = 'none';
+        };
+      });
+      document.querySelectorAll('.forum-edit-send').forEach(btn => {
+        btn.onclick = function() {
+          const form = document.getElementById('forum-edit-form-' + btn.dataset.id);
+          const nom = form.querySelector('.forum-edit-nom').value.trim();
+          const prenom = form.querySelector('.forum-edit-prenom').value.trim();
+          const content = form.querySelector('.forum-edit-content').value.trim();
+          if (!nom || !prenom || !content) {
+            alert('Merci de remplir nom, prénom et texte.');
+            return;
+          }
+          fetch('/api/forum/edit', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `id=${btn.dataset.id}&author=${encodeURIComponent(nom + ' ' + prenom)}&content=${encodeURIComponent(content)}`
+          }).then(resp => {
+            if (resp.ok) {
+              renderForum();
+            } else {
+              alert('Erreur lors de la modification.');
+            }
+          });
+        };
+      });
+      // Supprimer question
+      document.querySelectorAll('.forum-delete-btn').forEach(btn => {
+        btn.onclick = function() {
+          const nom = prompt('Pour confirmer la suppression, entrez votre nom :');
+          const prenom = nom ? prompt('Et votre prénom :') : '';
+          if (!nom || !prenom) return;
+          if (!confirm('Êtes-vous sûr de vouloir supprimer ce message ?')) return;
+          fetch('/api/forum/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `id=${btn.dataset.id}&author=${encodeURIComponent(nom + ' ' + prenom)}`
+          }).then(resp => {
+            if (resp.ok) {
+              renderForum();
+            } else {
+              alert('Suppression impossible (nom/prénom incorrects ou erreur serveur).');
+            }
+          });
+        };
+      });
+      // Modifier/Supprimer réponse
+      document.querySelectorAll('.forum-reply-edit-btn').forEach(btn => {
+        btn.onclick = function() {
+          const id = btn.dataset.id;
+          const idx = btn.dataset.idx;
+          const contentSpan = document.querySelector(`.forum-reply-content[data-id='${id}'][data-idx='${idx}']`);
+          const oldContent = contentSpan.textContent;
+          const editForm = document.createElement('div');
+          editForm.innerHTML = `<input type="text" class="forum-reply-edit-nom" placeholder="Nom" style="margin-bottom:0.4em; width:45%; padding:0.4em; border-radius:6px; border:1px solid #bbb;">
+            <input type="text" class="forum-reply-edit-prenom" placeholder="Prénom" style="margin-bottom:0.4em; width:45%; padding:0.4em; border-radius:6px; border:1px solid #bbb; margin-left:2%;">
+            <textarea class="forum-reply-edit-content" style="width:100%; margin-bottom:0.4em; padding:0.5em; border-radius:6px; border:1px solid #bbb;">${escapeHTML(oldContent)}</textarea>
+            <button class="forum-reply-edit-send" style="background:#18a8bf; color:#fff; border:none; border-radius:6px; padding:0.4em 1.2em; font-weight:bold; cursor:pointer;">Valider</button>
+            <button class="forum-reply-edit-cancel" style="background:#eee; color:#333; border:none; border-radius:6px; padding:0.4em 1.2em; margin-left:0.5em; cursor:pointer;">Annuler</button>`;
+          contentSpan.parentNode.appendChild(editForm);
+          btn.style.display = 'none';
+          // Annuler
+          editForm.querySelector('.forum-reply-edit-cancel').onclick = function() {
+            editForm.remove();
+            btn.style.display = '';
+          };
+          // Valider
+          editForm.querySelector('.forum-reply-edit-send').onclick = function() {
+            const nom = editForm.querySelector('.forum-reply-edit-nom').value.trim();
+            const prenom = editForm.querySelector('.forum-reply-edit-prenom').value.trim();
+            const content = editForm.querySelector('.forum-reply-edit-content').value.trim();
+            if (!nom || !prenom || !content) {
+              alert('Merci de remplir nom, prénom et texte.');
+              return;
+            }
+            fetch('/api/forum/edit', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+              body: `id=${id}&reply_idx=${btn.dataset.idx}&author=${encodeURIComponent(nom + ' ' + prenom)}&content=${encodeURIComponent(content)}`
+            }).then(resp => {
+              if (resp.ok) {
+                renderForum();
+              } else {
+                alert('Erreur lors de la modification.');
+              }
+            });
+          };
+        };
+      });
+      document.querySelectorAll('.forum-reply-delete-btn').forEach(btn => {
+        btn.onclick = function() {
+          const id = btn.dataset.id;
+          const idx = btn.dataset.idx;
+          const nom = prompt('Pour confirmer la suppression, entrez votre nom :');
+          const prenom = nom ? prompt('Et votre prénom :') : '';
+          if (!nom || !prenom) return;
+          if (!confirm('Êtes-vous sûr de vouloir supprimer cette réponse ?')) return;
+          fetch('/api/forum/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `id=${id}&reply_idx=${idx}&author=${encodeURIComponent(nom + ' ' + prenom)}`
+          }).then(resp => {
+            if (resp.ok) {
+              renderForum();
+            } else {
+              alert('Suppression impossible (nom/prénom incorrects ou erreur serveur).');
+            }
+          });
+        };
+      });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  if (document.getElementById('forum-form')) {
+    renderForum();
+    document.getElementById('forum-form').onsubmit = function(e) {
+      e.preventDefault();
+      const nom = document.getElementById('forum-nom').value.trim();
+      const prenom = document.getElementById('forum-prenom').value.trim();
+      const content = document.getElementById('forum-question').value.trim();
+      if (!nom || !prenom || !content) {
+        alert('Merci de remplir nom, prénom et question.');
+        return;
+      }
+      fetch('/api/forum', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `author=${encodeURIComponent(nom + ' ' + prenom)}&content=${encodeURIComponent(content)}`
+      }).then(resp => {
+        if (resp.ok) {
+          document.getElementById('forum-form').reset();
+          renderForum();
+        } else {
+          alert('Erreur lors de l\'envoi de la question.');
+        }
+      });
+    };
+  }
+});
+
+  
+   document.addEventListener('DOMContentLoaded', function () {
+    window.ouvrirPopup = function () {
+	console.log("Popup déclenchée");
+      document.getElementById('popup-don').style.display = 'flex';
+    };
+
+    window.fermerPopup = function () {
+      document.getElementById('popup-don').style.display = 'none';
+    };
+
+    window.envoyerDon = function (event) {
+      event.preventDefault();
+      fermerPopup();
+      alert("Merci pour votre don !");
+    };
+  });
+</script>
+
